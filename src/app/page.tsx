@@ -150,7 +150,9 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {Object.entries(progress).map(([pathId, pathProgress]) => {
-          const pathInfo = paths.find(p => p.id === pathId)!;
+          const pathInfo = paths.find(p => p.id === pathId);
+          if (!pathInfo) return null;
+          
           return (
             <LearningPathCard
               key={pathId}

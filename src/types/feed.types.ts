@@ -1,17 +1,18 @@
 export interface Video {
   id: string;
   title: string;
-  channel: {
-    name: string;
-    icon: string;
-  };
+  description: string;
   thumbnail: string;
-  publishedAt: string;
-  viewCount: number;
   duration: {
     length: number;
+    text: string;
   };
-  description: string;
+  channel: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  completed?: boolean;
 }
 
 export interface FeedFilters {

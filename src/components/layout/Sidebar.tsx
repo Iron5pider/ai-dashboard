@@ -70,6 +70,13 @@ export function DashboardSidebar() {
             isActive={pathname === "/feed"}
             isCollapsed={isCollapsed}
           />
+          <NavItem
+            href="/learning-path"
+            icon={BookOpen}
+            label="Learning Path"
+            isActive={pathname === "/learning-path"}
+            isCollapsed={isCollapsed}
+          />
         </div>
 
         <div className="relative py-4">

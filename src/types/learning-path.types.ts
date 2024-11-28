@@ -1,3 +1,5 @@
+import { Video } from "./feed.types";
+
 export interface LearningPathProgress {
   pathId: string;
   completed: number;
@@ -12,9 +14,11 @@ export interface LearningPath {
   description: string;
   level: 'beginner' | 'intermediate' | 'advanced';
   color: string;
-  prerequisites?: string[];
   topics: string[];
   estimatedHours: number;
+  prerequisites?: string[];
+  sourceVideo?: Video | null;
+  videos?: Video[];
 }
 
 export interface VideoLearningMetadata {
