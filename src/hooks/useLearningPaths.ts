@@ -338,7 +338,7 @@ export const useLearningPaths = () => {
       return {
         ...path,
         progress: pathProgress,
-        videos: path.videos || [path.sourceVideo].filter(Boolean),
+        videos: path.videos || [],
       };
     }).filter(Boolean);
   }, [paths, progress]);

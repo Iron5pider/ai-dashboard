@@ -13,6 +13,10 @@ export interface Video {
     avatar?: string;
   };
   completed?: boolean;
+  lastWatched?: string;
+  timeSpent?: number;
+  progress?: number;
+  topics?: string[];
 }
 
 export interface FeedFilters {
