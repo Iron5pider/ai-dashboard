@@ -39,20 +39,17 @@ export function VideoCard({ video, onSelect, onSave, onShare }: VideoCardProps) 
       // Create updated paths array
       const updatedPaths = paths.map(p => {
         if (p.id === pathId) {
-          const updatedVideos = [
-            ...p.videos,
-            {
-              ...video,
-              completed: false,
-              lastWatched: null,
-              timeSpent: 0,
-              progress: 0
-            }
-          ];
+          const videoWithAnalytics = {
+            ...video,
+            completed: false,
+            lastWatched: undefined,
+            timeSpent: 0,
+            progress: 0
+          };
           
           return {
             ...p,
-            videos: updatedVideos,
+            videos: [...p.videos, videoWithAnalytics],
             updatedAt: new Date().toISOString(),
           };
         }

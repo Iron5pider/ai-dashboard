@@ -293,7 +293,7 @@ export default function LearningPathPage() {
         });
       }
     }
-  }, []);
+  }, [updateProgress]);
 
   const handleEditPath = React.useCallback((path: LearningPath) => {
     setEditingPath(path);
