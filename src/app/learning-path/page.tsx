@@ -246,7 +246,7 @@ function PathCard({
 }
 
 export default function LearningPathPage() {
-  const { paths, getActivePaths } = useLearningPaths();
+  const { paths, getActivePaths, updateProgress } = useLearningPaths();
   const [selectedVideo, setSelectedVideo] = React.useState<Video | null>(null);
   const [activeTab, setActiveTab] = React.useState("videos");
   const [editingPath, setEditingPath] = React.useState<LearningPath | null>(null);
@@ -293,7 +293,7 @@ export default function LearningPathPage() {
         });
       }
     }
-  }, [updateProgress]);
+  }, []);
 
   const handleEditPath = React.useCallback((path: LearningPath) => {
     setEditingPath(path);
