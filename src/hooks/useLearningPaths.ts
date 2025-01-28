@@ -331,11 +331,7 @@ export const useLearningPaths = () => {
         }
       };
 
-      setPaths(prevPaths => {
-        const updated = [...prevPaths, newPath];
-        localStorage.setItem('learningPaths', JSON.stringify(updated));
-        return updated;
-      });
+      setPaths(prevPaths => [...prevPaths, newPath]);
 
       const newProgress: LearningPathProgress = {
         pathId,
@@ -347,11 +343,7 @@ export const useLearningPaths = () => {
         completedTopics: []
       };
 
-      setProgress(prev => {
-        const updated = { ...prev, [pathId]: newProgress };
-        localStorage.setItem('learningPathProgress', JSON.stringify(updated));
-        return updated;
-      });
+      setProgress(prev => ({ ...prev, [pathId]: newProgress }));
 
       toast({
         title: "New Path Created",
