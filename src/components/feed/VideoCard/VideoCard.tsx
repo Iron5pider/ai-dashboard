@@ -5,7 +5,6 @@ import { Video } from '@/types/feed.types';
 import { Badge } from "@/components/ui/badge";
 import { Share2, Bookmark, Play, Plus } from 'lucide-react';
 import Image from 'next/image';
-import { formatDistanceToNow } from 'date-fns';
 import { useLearningPaths } from '@/hooks/useLearningPaths';
 import {
   DropdownMenu,
