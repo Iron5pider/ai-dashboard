@@ -10,8 +10,10 @@ export interface Video {
   channel: {
     id: string;
     name: string;
-    avatar?: string;
+    icon?: string;
   };
+  publishedAt: string;
+  viewCount: number;
   completed?: boolean;
   lastWatched?: string;
   timeSpent?: number;
@@ -25,4 +27,10 @@ export interface FeedFilters {
   sortBy: 'relevance' | 'date' | 'viewCount';
   duration: 'all' | 'short' | 'medium' | 'long';
   level: 'beginner' | 'intermediate' | 'advanced' | 'all';
+}
+
+export interface FeedResponse {
+  videos: Video[];
+  nextPageToken?: string;
+  totalResults: number;
 }

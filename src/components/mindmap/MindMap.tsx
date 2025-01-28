@@ -2,210 +2,189 @@
 
 "use client"
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import ReactFlow, { 
+  Node, 
+  Edge, 
   Background, 
   Controls,
-  Node,
-  Edge,
-  ReactFlowInstance,
-  MarkerType,
+  NodeTypes,
+  EdgeTypes,
+  Connection,
+  useNodesState,
+  useEdgesState,
+  Position,
 } from 'reactflow';
+import dagre from 'dagre';
 import 'reactflow/dist/style.css';
 import { LearningPath } from '@/types/learning-path.types';
 import { Video } from '@/types/feed.types';
-import { toast } from '@/hooks/use-toast';
-import { CustomNode } from './CustomNode';
+import { VideoNode } from '@/components/mindmap/VideoNode';
+import { TopicNode } from '@/components/mindmap/TopicNode';
+import { CustomEdge } from '@/components/mindmap/CustomEdge';
 
 interface MindMapProps {
-  learningPath: LearningPath & {
-    progress: { completed: number; totalVideos: number };
-    videos: Video[];
-  };
+  learningPath: LearningPath;
   selectedVideo: Video | null;
   onVideoSelect: (video: Video | null) => void;
 }
 
-type CustomNode = Node<{ 
-  label: string; 
-  description?: string;
-  completed?: boolean;
-  progress?: number;
-  onComplete?: () => void;
-  onPlay?: () => void;
-  isGoalNode?: boolean;
-  video?: Video;
-  videoPreview?: {
-    thumbnailUrl: string;
-    title: string;
-    duration: string;
+const nodeTypes: NodeTypes = {
+  video: VideoNode,
+  topic: TopicNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
+};
+
+const dagreGraph = new dagre.graphlib.Graph();
+dagreGraph.setDefaultEdgeLabel(() => ({}));
+
+const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'TB') => {
+  const isHorizontal = direction === 'LR';
+  dagreGraph.setGraph({ rankdir: direction });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: 250, height: 100 });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  return {
+    nodes: nodes.map((node) => {
+      const nodeWithPosition = dagreGraph.node(node.id);
+      return {
+        ...node,
+        position: {
+          x: nodeWithPosition.x - 125,
+          y: nodeWithPosition.y - 50,
+        },
+        targetPosition: isHorizontal ? Position.Left : Position.Top,
+        sourcePosition: isHorizontal ? Position.Right : Position.Bottom,
+      };
+    }),
+    edges,
   };
-}>;
-type CustomEdge = Edge<any>;
+};
 
 export const MindMap: React.FC<MindMapProps> = ({ 
   learningPath, 
   selectedVideo,
-  onVideoSelect 
+  onVideoSelect,
 }) => {
-  const [nodes, setNodes] = useState<CustomNode[]>([]);
-  const [edges, setEdges] = useState<CustomEdge[]>([]);
-  const [completedVideos, setCompletedVideos] = useState<Set<string>>(new Set());
-  const [nodePositions, setNodePositions] = useState<Record<string, { x: number, y: number }>>({});
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  const initialNodes = useMemo(() => {
+    const pathNode: Node = {
+      id: learningPath.id,
+      type: 'topic',
+      data: { 
+        label: learningPath.name,
+        description: learningPath.description,
+        level: learningPath.level,
+      },
+      position: { x: 0, y: 0 },
+    };
+
+    const videoNodes: Node[] = learningPath.videos.map((video) => ({
+      id: video.id,
+      type: 'video',
+      data: { 
+        video,
+        isSelected: video.id === selectedVideo?.id,
+        onSelect: () => onVideoSelect(video),
+      },
+      position: { x: 0, y: 0 },
+    }));
+
+    const topicNodes: Node[] = learningPath.topics.map((topic, index) => ({
+      id: `topic-${index}`,
+      type: 'topic',
+      data: { 
+        label: topic,
+        description: `Videos related to ${topic}`,
+      },
+      position: { x: 0, y: 0 },
+    }));
+
+    return [pathNode, ...videoNodes, ...topicNodes];
+  }, [learningPath, selectedVideo, onVideoSelect]);
+
+  const initialEdges = useMemo(() => {
+    const edges: Edge[] = [];
+
+    // Connect path to topics
+    learningPath.topics.forEach((_, index) => {
+      edges.push({
+        id: `path-topic-${index}`,
+        source: learningPath.id,
+        target: `topic-${index}`,
+        type: 'custom',
+      });
+    });
+
+    // Connect videos to relevant topics
+    learningPath.videos.forEach((video) => {
+      video.topics?.forEach((topic) => {
+        const topicIndex = learningPath.topics.indexOf(topic);
+        if (topicIndex !== -1) {
+          edges.push({
+            id: `video-${video.id}-topic-${topicIndex}`,
+            source: `topic-${topicIndex}`,
+            target: video.id,
+            type: 'custom',
+          });
+        }
+      });
+    });
+
+    return edges;
+  }, [learningPath]);
 
   useEffect(() => {
-    // Create nodes for each video with progress
-    const videoNodes: CustomNode[] = learningPath.videos.map((video, index) => ({
-      id: video.id,
-      data: { 
-        label: video.title,
-        completed: completedVideos.has(video.id),
-        description: video.description || 'No description available',
-        progress: completedVideos.has(video.id) ? 100 : 0,
-        onComplete: () => handleNodeComplete(video.id),
-        onPlay: () => onVideoSelect(video),
-        isGoalNode: false,
-        video: video,
-        videoPreview: {
-          thumbnailUrl: video.thumbnail,
-          title: video.title,
-          duration: video.duration?.text || '0:00',
-        },
-      },
-      position: nodePositions[video.id] || { x: index * 200, y: index * 100 },
-      type: 'custom',
-    }));
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      initialNodes,
+      initialEdges
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-    // Create edges between videos
-    const videoEdges: CustomEdge[] = learningPath.videos.slice(1).map((video, index) => ({
-      id: `e${learningPath.videos[index].id}-${video.id}`,
-      source: learningPath.videos[index].id,
-      target: video.id,
-      animated: true,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-      },
-      type: 'smoothstep',
-    }));
-
-    // Add Goal Node with overall progress
-    const goalNode: CustomNode = {
-      id: 'goal',
-      data: { 
-        label: `Goal: Master ${learningPath.name}`,
-        completed: false,
-        description: 'Your ultimate goal in this learning path.',
-        progress: learningPath.progress 
-          ? (learningPath.progress.completed / learningPath.progress.totalVideos) * 100
-          : (completedVideos.size / learningPath.videos.length) * 100,
-        isGoalNode: true,
-      },
-      position: { 
-        x: learningPath.videos.length * 200 + 100, 
-        y: learningPath.videos.length * 100 
-      },
-      type: 'custom',
-      style: {
-        background: '#ffeeba',
-        border: '2px solid #ffc107',
-      },
-    };
-
-    // Add edge from last video to goal
-    const goalEdge: CustomEdge = {
-      id: `e${learningPath.videos[learningPath.videos.length - 1]?.id}-goal`,
-      source: learningPath.videos[learningPath.videos.length - 1]?.id,
-      target: 'goal',
-      animated: true,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-      },
-      type: 'smoothstep',
-    };
-
-    setNodes([...videoNodes, goalNode]);
-    setEdges([...videoEdges, goalEdge]);
-  }, [learningPath, completedVideos, selectedVideo, nodePositions]);
-
-  const onInit = (reactFlowInstance: ReactFlowInstance) => {
-    reactFlowInstance.fitView();
-  };
-
-  const handleNodeClick = async (event: React.MouseEvent, node: Node) => {
-    if (node.id === 'goal') return;
-
-    const video = learningPath.videos.find(v => v.id === node.id);
-    if (video) {
-      onVideoSelect(video);
-    }
-
-    const isCompleted = completedVideos.has(node.id);
-    try {
-      setCompletedVideos(prev => {
-        const newSet = new Set(prev);
-        if (isCompleted) {
-          newSet.delete(node.id);
-        } else {
-          newSet.add(node.id);
-        }
-        return newSet;
-      });
-
-      toast({
-        title: isCompleted ? "Video unmarked" : "Video completed",
-        description: `Progress updated for ${node.data.label}`,
-      });
-    } catch (error) {
-      console.error('Error updating progress:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update progress",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const onNodeDragStop = (_: React.MouseEvent, node: Node) => {
-    setNodePositions(prev => ({
-      ...prev,
-      [node.id]: node.position
-    }));
-  };
-
-  const handleNodeComplete = (nodeId: string) => {
-    const isCompleted = completedVideos.has(nodeId);
-    setCompletedVideos(prev => {
-      const newSet = new Set(prev);
-      if (isCompleted) {
-        newSet.delete(nodeId);
-      } else {
-        newSet.add(nodeId);
+  const onConnect = useCallback(
+    (params: Connection) => {
+      if (params.source && params.target) {
+        const newEdge: Edge = {
+          id: `${params.source}-${params.target}`,
+          source: params.source,
+          target: params.target,
+          type: 'custom',
+          sourceHandle: params.sourceHandle || undefined,
+          targetHandle: params.targetHandle || undefined,
+        };
+        setEdges((eds) => [...eds, newEdge]);
       }
-      return newSet;
-    });
-
-    toast({
-      title: isCompleted ? "Video unmarked" : "Video completed",
-      description: `Progress updated for ${nodes.find(n => n.id === nodeId)?.data.label}`,
-    });
-  };
-
-  // Add nodeTypes configuration
-  const nodeTypes = {
-    custom: CustomNode,
-  };
+    },
+    [setEdges]
+  );
 
   return (
     <div className="w-full h-full rounded-md border">
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onInit={onInit}
-        onNodeClick={handleNodeClick}
-        onNodeDragStop={onNodeDragStop}
-        nodesConnectable={false}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
+        className="bg-muted/50"
       >
         <Background />
         <Controls />

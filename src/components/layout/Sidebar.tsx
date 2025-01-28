@@ -33,7 +33,7 @@ export function DashboardSidebar() {
 
   // Calculate active paths
   const activePaths = Object.entries(progress).filter(
-    ([_, pathProgress]) => pathProgress.completed > 0
+    ([pathId]) => progress[pathId].completed > 0
   )
 
   return (

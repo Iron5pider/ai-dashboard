@@ -3,17 +3,12 @@
 import React, { useEffect } from 'react';
 import { VideoCard } from '@/components/feed/VideoCard/VideoCard';
 import { VideoCardSkeleton } from '@/components/feed/VideoCard/VideoCardSkeleton';
-import { Video } from '../../types/feed.types';
+import { Video, FeedResponse } from '../../types/feed.types';
 import { useInView } from 'react-intersection-observer';
 import { UseInfiniteQueryResult, InfiniteData } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
 
 interface FeedGridProps {
-  queryResult: UseInfiniteQueryResult<InfiniteData<{
-    videos: Video[];
-    nextPageToken: string;
-    totalResults: number;
-  }>, Error>;
+  queryResult: UseInfiniteQueryResult<InfiniteData<FeedResponse>, Error>;
   onVideoSelect: (video: Video) => void;
 }
 

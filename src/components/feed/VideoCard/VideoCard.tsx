@@ -1,14 +1,19 @@
 import React from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { VideoCardActions } from './VideoCardActions';
-import { Video } from '../../../types/feed.types';
-import { UserCircle2, BookOpen, Clock, GraduationCap } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Video } from '@/types/feed.types';
+import { Badge } from "@/components/ui/badge";
+import { Share2, Bookmark, Play, Plus } from 'lucide-react';
+import Image from 'next/image';
+import { formatDistanceToNow } from 'date-fns';
 import { useLearningPaths } from '@/hooks/useLearningPaths';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from '@/hooks/use-toast';
 
 interface VideoCardProps {
   video: Video;
@@ -17,137 +22,161 @@ interface VideoCardProps {
   onShare: (id: string) => void;
 }
 
-export const VideoCard: React.FC<VideoCardProps> = ({ video, onSelect, onSave, onShare }) => {
-  const [isHovered, setIsHovered] = React.useState(false);
-  const { getPathForVideo, createLearningPath } = useLearningPaths();
-  
-  const handleClick = async () => {
-    const pathInfo = getPathForVideo(video);
-    if (!pathInfo) {
-      // Generate new learning path if one doesn't exist
-      const newPath = await createLearningPath({
-        sourceVideo: video,
-        level: detectDifficultyLevel(video),
-        topics: extractTopics(video)
+export function VideoCard({ video, onSelect, onSave, onShare }: VideoCardProps) {
+  const { paths, setPaths } = useLearningPaths();
+
+  const handleAddToPath = (pathId: string) => {
+    try {
+      // Check if video already exists in path before state update
+      const existingPath = paths.find(p => p.id === pathId);
+      if (existingPath && existingPath.videos.some(v => v.id === video.id)) {
+        toast({
+          title: "Already Added",
+          description: "This video is already in the learning path",
+        });
+        return;
+      }
+
+      // Create updated paths array
+      const updatedPaths = paths.map(p => {
+        if (p.id === pathId) {
+          const updatedVideos = [
+            ...p.videos,
+            {
+              ...video,
+              completed: false,
+              lastWatched: null,
+              timeSpent: 0,
+              progress: 0
+            }
+          ];
+          
+          return {
+            ...p,
+            videos: updatedVideos,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        return p;
+      });
+
+      // Update state
+      setPaths(updatedPaths);
+
+      // Show success toast
+      toast({
+        title: "Video Added",
+        description: "Video has been added to the learning path",
+      });
+      
+    } catch (error) {
+      console.error('Error adding video to path:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add video to learning path",
+        variant: "destructive",
       });
     }
-    onSelect();
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const formatViews = (views: number): string => {
+    if (views >= 1000000) {
+      return `${(views / 1000000).toFixed(1)}M views`;
+    }
+    if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}K views`;
+    }
+    return `${views} views`;
   };
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Card 
-          className={cn(
-            "group overflow-hidden cursor-pointer transition-transform duration-100",
-            isHovered && "scale-[1.01] shadow-md"
-          )}
-          onClick={handleClick}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
+    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+      <div className="relative aspect-video cursor-pointer group" onClick={onSelect}>
+        <Image
+          src={video.thumbnail}
+          alt={video.title}
+          fill
+          className="object-cover transition-transform group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <Play className="w-12 h-12 text-white" />
+        </div>
+        <Badge 
+          variant="secondary" 
+          className="absolute bottom-2 right-2 bg-black/80 text-white"
         >
-          <div className="relative w-full aspect-video">
-            <img
-              src={video.thumbnail}
-              alt={video.title}
-              className="w-full h-full object-cover transition-transform duration-100 group-hover:scale-[1.015]"
-              loading="lazy"
-              onError={(e) => {
-                e.currentTarget.src = 'https://placehold.co/600x400?text=No+Thumbnail';
-              }}
-            />
-            <div className={cn(
-              "absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 transition-opacity duration-75 flex items-center justify-center",
-              isHovered && "opacity-100"
-            )}>
-              <GraduationCap className="w-12 h-12 text-primary animate-pulse" />
-            </div>
-            <div className={cn(
-              "absolute bottom-2 right-2 opacity-0 transition-opacity duration-75",
-              isHovered && "opacity-100"
-            )}>
-              <Badge variant="secondary" className="flex items-center gap-1 bg-background/80 backdrop-blur-sm">
-                <Clock className="h-3 w-3" />
-                {Math.floor(video.duration.length / 60)}:{(video.duration.length % 60).toString().padStart(2, '0')}
-              </Badge>
-            </div>
-          </div>
-          <CardContent className="p-4">
-            <h3 className="text-lg font-semibold line-clamp-2 mb-2">{video.title}</h3>
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6">
-                {video.channel.icon ? (
-                  <AvatarImage src={video.channel.icon} alt={video.channel.name} />
-                ) : (
-                  <AvatarFallback delayMs={0}>
-                    <UserCircle2 className="h-4 w-4" />
-                  </AvatarFallback>
-                )}
-              </Avatar>
-              <span className="text-sm text-muted-foreground flex-grow truncate">
-                {video.channel.name}
-              </span>
-            </div>
-            <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-              <span>{video.viewCount.toLocaleString()} views</span>
-              <span>{formatPublishedDate(video.publishedAt)}</span>
-            </div>
-          </CardContent>
-          <CardFooter className={cn(
-            "p-4 pt-0 opacity-0 transition-all duration-75",
-            isHovered && "opacity-100"
-          )}>
-            <VideoCardActions videoId={video.id} onSave={onSave} onShare={onShare} />
-          </CardFooter>
-        </Card>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Click to start learning path</p>
-      </TooltipContent>
-    </Tooltip>
+          {formatDuration(video.duration.length)}
+        </Badge>
+      </div>
+
+      <CardHeader className="space-y-2 p-4">
+        <CardTitle className="text-base font-medium line-clamp-2">
+          {video.title}
+        </CardTitle>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>{video.channel.name}</span>
+          <span>•</span>
+          <span>{formatViews(video.viewCount)}</span>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-4 pt-0">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare(video.id);
+            }}
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSave(video.id);
+            }}
+          >
+            <Bookmark className="h-4 w-4" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {paths.map(path => (
+                <DropdownMenuItem 
+                  key={path.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAddToPath(path.id);
+                  }}
+                >
+                  Add to {path.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardContent>
+    </Card>
   );
-};
-
-function formatPublishedDate(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 1) {
-    return 'Yesterday';
-  } else if (diffDays <= 7) {
-    return `${diffDays} days ago`;
-  } else if (diffDays <= 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return `${weeks} ${weeks === 1 ? 'week' : 'weeks'} ago`;
-  } else {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-}
-
-// Helper functions for learning path generation
-function detectDifficultyLevel(video: Video): 'beginner' | 'intermediate' | 'advanced' {
-  const title = video.title.toLowerCase();
-  const description = video.description.toLowerCase();
-  
-  if (title.includes('advanced') || title.includes('expert')) {
-    return 'advanced';
-  } else if (title.includes('project') || title.includes('implementation')) {
-    return 'intermediate';
-  }
-  return 'beginner';
-}
-
-function extractTopics(video: Video): string[] {
-  const keywords = [
-    'machine learning', 'deep learning', 'neural networks', 
-    'computer vision', 'nlp', 'reinforcement learning',
-    'data science', 'artificial intelligence'
-  ];
-  
-  const content = `${video.title} ${video.description}`.toLowerCase();
-  return keywords.filter(keyword => content.includes(keyword));
 }
 
 

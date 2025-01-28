@@ -19,6 +19,16 @@ export const FilterControls: React.FC<FilterControlsProps> = ({
 }) => {
   return (
     <div className="flex space-x-4">
+      <Select value={filters.sortBy} onValueChange={(value: FeedFilters['sortBy']) => updateFilters({ sortBy: value })}>
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Sort By" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="relevance">Most Relevant</SelectItem>
+          <SelectItem value="date">Most Recent</SelectItem>
+          <SelectItem value="viewCount">Most Viewed</SelectItem>
+        </SelectContent>
+      </Select>
       <Select value={filters.duration} onValueChange={(value: FeedFilters['duration']) => updateFilters({ duration: value })}>
         <SelectTrigger className="w-[180px]">
           <SelectValue placeholder="Duration" />

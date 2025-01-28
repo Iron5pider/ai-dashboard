@@ -1,16 +1,7 @@
 "use client"
 
 import { LearningPath } from "@/types/learning-path.types"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import dynamic from 'next/dynamic'
 import { Video } from "@/types/feed.types"
-
-// Dynamic import with no SSR
-const MindMap = dynamic(
-  () => import('@/components/mindmap/MindMap').then(mod => mod.MindMap),
-  { ssr: false }
-)
 
 /**
  * Retrieves the learning path information by its ID.

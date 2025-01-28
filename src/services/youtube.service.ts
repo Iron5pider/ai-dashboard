@@ -32,6 +32,95 @@ export interface YouTubeSearchParams {
   pageToken?: string;
   type?: string;
   videoDuration?: string;
+  order?: 'relevance' | 'date' | 'viewCount';
+}
+
+interface YouTubeSearchItem {
+  id: {
+    videoId: string;
+  };
+  snippet: {
+    title: string;
+    channelId: string;
+    channelTitle: string;
+    publishedAt: string;
+    description: string;
+    thumbnails: {
+      high: {
+        url: string;
+      };
+    };
+  };
+}
+
+interface YouTubeVideoStats {
+  id: string;
+  contentDetails: {
+    duration: string;
+  };
+  statistics: {
+    viewCount: string;
+  };
+}
+
+interface YouTubeSearchResponse {
+  items: YouTubeSearchItem[];
+  nextPageToken?: string;
+  pageInfo: {
+    totalResults: number;
+  };
+  error?: {
+    message: string;
+  };
+}
+
+interface YouTubeStatsResponse {
+  items: YouTubeVideoStats[];
+  error?: {
+    message: string;
+  };
+}
+
+interface YouTubeCategoryItem {
+  id: string;
+  snippet: {
+    title: string;
+  };
+}
+
+interface YouTubeCategoryResponse {
+  items: YouTubeCategoryItem[];
+  error?: {
+    message: string;
+  };
+}
+
+function parseDuration(duration: string): { length: number; text: string } {
+  const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+  
+  if (!match) {
+    return { length: 0, text: '0:00' };
+  }
+
+  const hours = (match[1] ? parseInt(match[1]) : 0);
+  const minutes = (match[2] ? parseInt(match[2]) : 0);
+  const seconds = (match[3] ? parseInt(match[3]) : 0);
+  
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  
+  let text = '';
+  if (hours > 0) {
+    text += `${hours}:`;
+    text += `${minutes.toString().padStart(2, '0')}:`;
+  } else {
+    text += `${minutes}:`;
+  }
+  text += seconds.toString().padStart(2, '0');
+  
+  return {
+    length: totalSeconds,
+    text
+  };
 }
 
 export async function searchVideos({
@@ -40,6 +129,7 @@ export async function searchVideos({
   pageToken = '',
   type = 'video',
   videoDuration,
+  order = 'relevance',
 }: YouTubeSearchParams) {
   if (!API_KEY) {
     console.warn('YouTube API key is missing, using mock data');
@@ -53,19 +143,20 @@ export async function searchVideos({
       q,
       type,
       key: API_KEY,
+      order,
       ...(pageToken && { pageToken }),
       ...(videoDuration && { videoDuration })
     });
 
     const response = await rateLimitedFetch(`${YOUTUBE_API_URL}/search?${searchParams}`);
-    const data = await response.json();
+    const data = (await response.json()) as YouTubeSearchResponse;
 
     if (!response.ok) {
       throw new Error(data.error?.message || 'Failed to fetch videos');
     }
 
     // Get video statistics with rate limiting
-    const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+    const videoIds = data.items.map(item => item.id.videoId).join(',');
     const statsParams = new URLSearchParams({
       part: 'statistics,contentDetails',
       id: videoIds,
@@ -73,35 +164,30 @@ export async function searchVideos({
     });
 
     const statsResponse = await rateLimitedFetch(`${YOUTUBE_API_URL}/videos?${statsParams}`);
-    const statsData = await statsResponse.json();
+    const statsData = (await statsResponse.json()) as YouTubeStatsResponse;
 
     if (!statsResponse.ok) {
       throw new Error(statsData.error?.message || 'Failed to fetch video stats');
     }
 
-    const videos = data.items.map((item: any) => {
-      const stats = statsData.items.find((stat: any) => stat.id === item.id.videoId);
+    const videos = data.items.map(item => {
+      const stats = statsData.items.find(stat => stat.id === item.id.videoId);
       const duration = stats?.contentDetails?.duration || 'PT0M0S';
       
-      const durationMatch = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-      const hours = parseInt(durationMatch?.[1] || '0');
-      const minutes = parseInt(durationMatch?.[2] || '0');
-      const seconds = parseInt(durationMatch?.[3] || '0');
-      const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+      const parsedDuration = parseDuration(duration);
 
       return {
         id: item.id.videoId,
         title: item.snippet.title,
         channel: {
+          id: item.snippet.channelId,
           name: item.snippet.channelTitle,
           icon: `https://i.ytimg.com/vi/${item.id.videoId}/default.jpg`,
         },
         thumbnail: item.snippet.thumbnails.high.url,
         publishedAt: item.snippet.publishedAt,
         viewCount: parseInt(stats?.statistics?.viewCount || '0'),
-        duration: {
-          length: totalSeconds,
-        },
+        duration: parsedDuration,
         description: item.snippet.description,
       };
     });
@@ -123,15 +209,14 @@ function getMockVideos(q: string, maxResults: number) {
     id: `video-${index}-${Date.now()}`,
     title: `AI Tutorial ${index + 1}: ${q}`,
     channel: {
+      id: `channel-${index}`,
       name: 'AI Learning Channel',
       icon: 'https://placehold.co/100x100',
     },
     thumbnail: 'https://placehold.co/1280x720',
     publishedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
     viewCount: Math.floor(Math.random() * 1000000),
-    duration: {
-      length: Math.floor(Math.random() * 3600),
-    },
+    duration: parseDuration('PT30M'),
     description: `Learn about ${q} in this comprehensive tutorial.`,
   }));
 
@@ -145,18 +230,18 @@ function getMockVideos(q: string, maxResults: number) {
 export async function getVideoCategories() {
   const params = new URLSearchParams({
     part: 'snippet',
-    regionCode: 'US', // You might want to make this dynamic
+    regionCode: 'US',
     key: API_KEY!
   });
 
   const response = await fetch(`${YOUTUBE_API_URL}/videoCategories?${params}`);
-  const data = await response.json();
+  const data = await response.json() as YouTubeCategoryResponse;
 
   if (!response.ok) {
     throw new Error(data.error?.message || 'Failed to fetch categories');
   }
 
-  return data.items.map((item: any) => ({
+  return data.items.map(item => ({
     id: item.id,
     title: item.snippet.title
   }));

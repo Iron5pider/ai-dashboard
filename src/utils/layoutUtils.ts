@@ -1,7 +1,7 @@
 import dagre from 'dagre';
-import { Node } from 'reactflow';
+import { Node, Edge } from 'reactflow';
 
-export const getLayoutedElements = (nodes: Node[], edges: any[], direction = 'LR') => {
+export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
 

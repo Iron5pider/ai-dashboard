@@ -6,8 +6,8 @@ export interface LearningPathProgress {
   totalVideos: number
   lastWatched: string
   startedAt: string
-  timeSpent?: number
-  completedTopics?: string[]
+  timeSpent: number
+  completedTopics: string[]
 }
 
 export interface VideoLearningMetadata {
@@ -17,25 +17,31 @@ export interface VideoLearningMetadata {
   requiredWatchMinutes: number
 }
 
+export type PathCategory = 'ai' | 'machine-learning' | 'deep-learning' | 'computer-vision' | 'nlp' | 'other';
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export interface CompletionCriteria {
+  minVideosWatched: number
+  minTimeSpent: number
+  requiredTopics: string[]
+}
+
 export interface LearningPath {
   id: string
   name: string
   description: string
-  level: 'beginner' | 'intermediate' | 'advanced'
+  level: DifficultyLevel
   color: string
   topics: string[]
   estimatedHours: number
   videos: Video[]
-  category?: 'ai' | 'machine-learning' | 'deep-learning' | 'computer-vision' | 'nlp' | 'other'
+  category: PathCategory
   prerequisites?: string[]
-  createdAt?: string
-  updatedAt?: string
-  completionCriteria?: {
-    minVideosWatched: number
-    minTimeSpent: number
-    requiredTopics: string[]
-  }
+  createdAt: string
+  updatedAt: string
+  completionCriteria: CompletionCriteria
   progress?: LearningPathProgress
+  relevanceScore?: number
 }
 
 export interface PathProgress {
@@ -52,5 +58,16 @@ export interface VideoProgress {
   completed: boolean
   lastWatched: string
   timeSpent: number
+  topics: string[]
+}
+
+export interface PathRecommendation extends LearningPath {
+  relevanceScore: number
+  matchingTopics: string[]
+  prerequisitesCompleted: boolean
+  nextSteps?: {
+    type: 'complete_prerequisites' | 'start_path' | 'continue_path'
+    message: string
+  }
 }
 
