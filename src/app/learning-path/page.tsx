@@ -303,19 +303,20 @@ export default function LearningPathPage() {
   const handleDeletePath = React.useCallback((pathId: string) => {
     try {
       const updatedPaths = paths.filter(p => p.id !== pathId);
-      localStorage.setItem('learningPaths', JSON.stringify(updatedPaths));
+      setPaths(updatedPaths);
       toast({
         title: "Path Deleted",
         description: "The learning path has been deleted",
       });
-    } catch {
+    } catch (error) {
+      console.error('Error deleting path:', error);
       toast({
         title: "Error",
         description: "Failed to delete learning path",
         variant: "destructive",
       });
     }
-  }, [paths]);
+  }, [paths, setPaths]);
 
   const handleRemoveVideo = React.useCallback((pathId: string, videoId: string) => {
     try {
@@ -328,19 +329,20 @@ export default function LearningPathPage() {
         }
         return path;
       });
-      localStorage.setItem('learningPaths', JSON.stringify(updatedPaths));
+      setPaths(updatedPaths);
       toast({
         title: "Video Removed",
         description: "The video has been removed from the path",
       });
-    } catch {
+    } catch (error) {
+      console.error('Error removing video:', error);
       toast({
         title: "Error",
         description: "Failed to remove video",
         variant: "destructive",
       });
     }
-  }, [paths]);
+  }, [paths, setPaths]);
 
   return (
     <div className="container py-8">

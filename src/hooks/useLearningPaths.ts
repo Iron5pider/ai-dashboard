@@ -66,48 +66,66 @@ const LEARNING_PATHS: LearningPath[] = [
 
 export const useLearningPaths = () => {
   const [paths, setPaths] = useState<LearningPath[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedPaths = localStorage.getItem('learningPaths');
-        if (savedPaths) {
-          const parsed = JSON.parse(savedPaths);
-          return Array.isArray(parsed) && parsed.length > 0 ? parsed : LEARNING_PATHS;
-        }
-      } catch (error) {
-        console.error('Error loading learning paths:', error);
-      }
+    // Default to LEARNING_PATHS during server-side rendering
+    if (typeof window === 'undefined') {
+      return LEARNING_PATHS;
     }
-    // Initialize with default paths if nothing in localStorage
-    localStorage.setItem('learningPaths', JSON.stringify(LEARNING_PATHS));
-    return LEARNING_PATHS;
+
+    try {
+      const savedPaths = localStorage.getItem('learningPaths');
+      if (savedPaths) {
+        const parsed = JSON.parse(savedPaths);
+        return Array.isArray(parsed) && parsed.length > 0 ? parsed : LEARNING_PATHS;
+      }
+      // Initialize with default paths if nothing in localStorage
+      localStorage.setItem('learningPaths', JSON.stringify(LEARNING_PATHS));
+      return LEARNING_PATHS;
+    } catch (error) {
+      console.error('Error loading learning paths:', error);
+      return LEARNING_PATHS;
+    }
   });
 
   const [progress, setProgress] = useState<Record<string, LearningPathProgress>>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('learningPathProgress');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          return typeof parsed === 'object' ? parsed : {};
-        }
-      } catch (error) {
-        console.error('Error loading learning progress:', error);
-      }
+    // Return empty object during server-side rendering
+    if (typeof window === 'undefined') {
+      return {};
     }
-    return {};
+
+    try {
+      const saved = localStorage.getItem('learningPathProgress');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return typeof parsed === 'object' ? parsed : {};
+      }
+      return {};
+    } catch (error) {
+      console.error('Error loading learning progress:', error);
+      return {};
+    }
   });
 
   // Sync paths to localStorage whenever they change
   useEffect(() => {
-    if (typeof window !== 'undefined' && paths.length > 0) {
-      localStorage.setItem('learningPaths', JSON.stringify(paths));
+    if (typeof window === 'undefined') return;
+    
+    try {
+      if (paths.length > 0) {
+        localStorage.setItem('learningPaths', JSON.stringify(paths));
+      }
+    } catch (error) {
+      console.error('Error saving learning paths:', error);
     }
   }, [paths]);
 
   // Sync progress to localStorage whenever it changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+    
+    try {
       localStorage.setItem('learningPathProgress', JSON.stringify(progress));
+    } catch (error) {
+      console.error('Error saving learning progress:', error);
     }
   }, [progress]);
 
